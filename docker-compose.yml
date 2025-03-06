@@ -1,6 +1,33 @@
 version: "3.8"
-services:
 
+# Define reusable GPU resource constraints
+x-resources: &resources_gpu
+  shm_size: "64g"
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
+  environment:
+    - NVIDIA_VISIBLE_DEVICES=0
+    - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+  deploy:
+    resources:
+      # limits:
+      #   cpus: "6.0"
+      #   memory: 16384M
+      # memory_swap: 16384M
+      reservations:
+        cpus: "1.0"
+        memory: 2048M
+        # memory_swap: 500M
+        devices:
+          - driver: nvidia
+            device_ids: ["0"]
+            capabilities: [gpu]
+
+
+services:
   webui:
     image: ghcr.io/open-webui/open-webui:main
     expose:
@@ -17,6 +44,7 @@ services:
      - ollama
 
   ollama:
+    <<: *resources_gpu
     image: ollama/ollama
     expose:
      - 11434/tcp
@@ -27,13 +55,6 @@ services:
     command: serve
     volumes:
       - ollama:/root/.ollama
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ['all']
-              capabilities: [gpu]
 
   tunnel:
     image: cloudflare/cloudflared:latest
