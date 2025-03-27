@@ -1,39 +1,60 @@
 version: "3.8"
-services:
 
+x-resources: &resources_gpu
+  shm_size: "32g"
+  privileged: true
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia # use the GPU of the host
+            device_ids: ["all"] # use the GPU 0
+            capabilities: [gpu] # use the GPU
+
+services:
   webui:
     image: ghcr.io/open-webui/open-webui:main
     expose:
-     - 8080/tcp
+      - 8080/tcp
     ports:
-     - 8080:8080/tcp
+      - 11435:8080/tcp
     environment:
-     - OLLAMA_BASE_URL=http://ollama:11434
-     # uncomment the following if you are running ollama on the docker host and remove the ollama service below
-     #- OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - OLLAMA_BASE_URL=http://ollama:11434
+      # uncomment the following if you are running ollama on the docker host and remove the ollama service below
+      #- OLLAMA_BASE_URL=http://host.docker.internal:11434
     volumes:
       - open-webui:/app/backend/data
     depends_on:
-     - ollama
+      - ollama
 
   ollama:
-    image: ollama/ollama
+    <<: *resources_gpu
+    image: wisrovi/ollama/server:v1.0
+    build:
+      context: .
+      dockerfile: Dockerfile
     expose:
-     - 11434/tcp
+      - 11434/tcp
     ports:
-     - 11434:11434/tcp
+      - 11434:11434/tcp
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - OLLAMA_MAX_OFFLOAD=7GB # Adjust based on GPU capacity
+      # Enable Flash Attention for better performance (depending on GPU capabilities)
+      - OLLAMA_FLASH_ATTN=1
+      # Batch size setting for inference (adjust based on your GPU's capabilities)
+      - OLLAMA_N_BATCH=8 # Adjust the batch size for inference tasks
+      # Optionally, adjust the number of threads for inference
+      - OLLAMA_N_THREADS=8 # Set to a value matching your machine's number of cores
+      # Ensure GPU is accessible
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     healthcheck:
       test: ollama --version || exit 1
     command: serve
     volumes:
-      - ollama:/root/.ollama
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ['all']
-              capabilities: [gpu]
+      # - ollama:/root/.ollama  # path to save models
+      - ./ollama:/root/.ollama # path to save models
 
   tunnel:
     image: cloudflare/cloudflared:latest
