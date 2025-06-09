@@ -1,3 +1,7 @@
+el token se puede obtener de:
+https://aistudio.google.com/app/apikey
+
+
 Poner el archivo en alguna ruta identifiable, por ejemplo:
 /home/wrodriguez/miniconda3/
 
